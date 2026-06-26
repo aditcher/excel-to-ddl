@@ -16,26 +16,43 @@ This tool automates that intake workflow — the part that usually takes 20–30
 
 ---
 
-## Features
+## What it does
 
-| Feature | Detail |
+**1. Generates production-ready DDL** across 5 SQL dialects — paste straight into your query editor and run:
+
+| Dialect | Example type names |
 |---|---|
-| **Type inference** | INTEGER, FLOAT, VARCHAR(50/255), TEXT, BOOLEAN, DATE, TIMESTAMP, VARIANT/JSON for mixed-type columns |
-| **Null % audit** | Visual bar chart + counts per column — instant data quality snapshot |
-| **Duplicate PK detection** | Warns if your candidate primary key has duplicates before you commit to a schema |
-| **FK candidate hints** | Scans column names for `_id`, `_key`, `_code`, `_ref` patterns and flags them in DDL comments |
-| **Multi-sheet support** | Dropdown selector for workbooks with multiple tabs |
-| **Column name sanitization** | Converts `"Phone #"` → `phone_num`, `"Date of Birth"` → `date_of_birth` — with a before/after log |
-| **Data dictionary export** | One-click `.csv` export: column names, types, null %, unique counts, sample values |
-| **Sample INSERTs** | Optional `INSERT INTO` statements for the first 5 rows |
-| **5 SQL dialects** | Snowflake · SQL Server (T-SQL) · MySQL · PostgreSQL · Oracle |
-| **Copy or save** | Copy DDL to clipboard or save as `.sql` |
+| **Snowflake** | `TIMESTAMP_NTZ`, `FLOAT`, `VARIANT` |
+| **SQL Server (T-SQL)** | `DATETIME2`, `NVARCHAR(255)`, `DECIMAL(18,4)` |
+| **MySQL** | `DATETIME`, `TINYINT(1)`, `JSON` |
+| **PostgreSQL** | `NUMERIC(18,4)`, `BOOLEAN`, `JSONB` |
+| **Oracle** | `NUMBER(10)`, `VARCHAR2(255)`, `CLOB` |
 
----
+**2. Cleans your data automatically** before generating the schema:
 
-## Screenshots
+- Removes exact duplicate rows
+- Strips leading/trailing whitespace from all cells
+- Converts `"NA"`, `"N/A"`, `"null"`, `"none"` strings to real NULL
+- Detects zeros used as null placeholders in categorical columns (color, size, style, type) and converts them to NULL
+- Standardizes 10+ date formats to `YYYY-MM-DD` — handles `03/14/1985`, `14.11.1978`, `30/05/1995` and more
+- Normalizes company/name columns — strips Inc., LLC, Ltd., Corp. suffixes and title-cases values
+- Collapses empty strings to NULL
 
-> *Add screenshots here after first build*
+**3. Audits data quality** at a glance:
+
+- Row count, column count, total null cells
+- Null % per column shown as a color-coded bar chart (blue → amber → red by severity)
+- Duplicate primary key detection
+- Foreign key candidate hints (columns named `_id`, `_key`, `_code`, `_ref`)
+- Mixed-type column detection → flags as `VARIANT`/`JSONB`
+
+**4. Exports deliverables** a BA or analyst would actually hand to a team:
+
+- **Save .sql** — the `CREATE TABLE` statement, ready to execute
+- **Save Dict .csv** — lightweight data dictionary for any tool
+- **Save Dict .xlsx** — formatted Excel data dictionary with bold headers, color-coded null %, PK/FK highlights, and a Cleaning Log sheet
+- **Row Preview tab** — see the first 50 cleaned rows before committing to the schema
+- **Column Name Map tab** — before/after log of every column rename (`"Phone #"` → `phone_num`)
 
 ---
 
