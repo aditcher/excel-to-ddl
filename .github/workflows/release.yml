@@ -1,0 +1,129 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # ── Windows EXE ────────────────────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl pyinstaller
+
+      - name: Build EXE
+        run: |
+          pyinstaller `
+            --name "ExcelToDDL" `
+            --windowed `
+            --onefile `
+            --clean `
+            main.py
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/ExcelToDDL.exe
+
+  # ── macOS DMG ──────────────────────────────────────────────────────────────
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install openpyxl pyinstaller
+
+      - name: Build .app
+        run: |
+          pyinstaller \
+            --name "ExcelToDDL" \
+            --windowed \
+            --onefile \
+            --clean \
+            main.py
+
+      - name: Create DMG
+        run: |
+          hdiutil create \
+            -volname "Excel to DDL Automator" \
+            -srcfolder "dist/ExcelToDDL.app" \
+            -ov -format UDZO \
+            dist/ExcelToDDL_mac.dmg
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: dist/ExcelToDDL_mac.dmg
+
+  # ── GitHub Release ─────────────────────────────────────────────────────────
+  release:
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows EXE
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: artifacts/
+
+      - name: Download macOS DMG
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-dmg
+          path: artifacts/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Excel → DDL Automator ${{ github.ref_name }}"
+          body: |
+            ## Excel → DDL Automator ${{ github.ref_name }}
+
+            Upload any messy Excel or CSV file and get a production-ready `CREATE TABLE` statement.
+
+            ### Features
+            - Type inference (INTEGER, FLOAT, VARCHAR, BOOLEAN, DATE, TIMESTAMP, VARIANT)
+            - Null % audit with visual bar chart
+            - Duplicate PK detection
+            - FK candidate hints
+            - Multi-sheet workbook support
+            - Data dictionary export (.csv)
+            - Sample INSERT statements
+            - Column name sanitization log
+            - Dialects: Snowflake · SQL Server · MySQL · PostgreSQL · Oracle
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | Windows  | `ExcelToDDL.exe` |
+            | macOS    | `ExcelToDDL_mac.dmg` |
+
+          files: |
+            artifacts/ExcelToDDL.exe
+            artifacts/ExcelToDDL_mac.dmg
+          draft: false
+          prerelease: false
