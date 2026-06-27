@@ -1,6 +1,6 @@
 # Excel → DDL Automator
 
-> Upload any messy spreadsheet. Get a production-ready `CREATE TABLE` statement, a data quality audit, and a data dictionary — in seconds.
+> Upload any messy spreadsheet. Get a production-ready `CREATE TABLE` statement, a full DML script, a data quality audit, and a data dictionary — in seconds.
 
 [![GitHub release](https://img.shields.io/github/v/release/aditcher/excel-to-ddl)](https://github.com/aditcher/excel-to-ddl/releases)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/)
@@ -10,15 +10,17 @@
 
 ## Why this exists
 
-Every data analyst knows the pain: a business stakeholder hands you a spreadsheet with no schema documentation, inconsistent formatting, mixed data types, and blank cells scattered throughout. Before you can load it into a warehouse, you need a table definition.
+Every data analyst knows the pain: a business stakeholder hands you a spreadsheet with no schema documentation, inconsistent formatting, mixed data types, and blank cells scattered throughout. Before you can load it into a warehouse, you need a table definition — and then you need to actually get the data in.
 
-This tool automates that intake workflow — the part that usually takes 20–30 minutes of manual inspection and typing.
+This tool automates the entire intake workflow — schema generation, data cleaning, DML scripting, and documentation — the part that usually takes 20–30 minutes of manual work.
 
 ---
 
 ## What it does
 
-**1. Generates production-ready DDL** across 5 SQL dialects — paste straight into your query editor and run:
+### 1. Generates production-ready DDL across 5 SQL dialects
+
+Paste straight into your query editor and run:
 
 | Dialect | Example type names |
 |---|---|
@@ -28,7 +30,23 @@ This tool automates that intake workflow — the part that usually takes 20–30
 | **PostgreSQL** | `NUMERIC(18,4)`, `BOOLEAN`, `JSONB` |
 | **Oracle** | `NUMBER(10)`, `VARCHAR2(255)`, `CLOB` |
 
-**2. Cleans your data automatically** before generating the schema:
+---
+
+### 2. Generates a complete DML script *(new in v1.1.0)*
+
+The **DML Output** tab produces a ready-to-use SQL script with 5 sections — dialect-aware for every supported platform:
+
+| Section | What it generates |
+|---|---|
+| **1. Batch INSERTs** | One `INSERT` per row (SQL Server uses efficient 1,000-row `VALUES` blocks). Row limit is user-configurable: 100 / 500 / 1,000 / All rows |
+| **2. Snowflake COPY INTO** | Full stage setup (`CREATE STAGE`), `PUT` command for SnowSQL, `COPY INTO` with error handling, and `RESULT_SCAN` validation *(Snowflake only)* |
+| **3. CSV Staging Export** | Header row and column map — matches the DDL schema exactly. Use **Save Staged CSV** to export the cleaned file ready for bulk load |
+| **4. UPDATE template** | Pre-built `UPDATE … SET … WHERE` with `<placeholder>` values for every non-PK column |
+| **5. MERGE / UPSERT** | Dialect-aware: standard `MERGE INTO` for Snowflake / SQL Server / Oracle, `INSERT … ON DUPLICATE KEY UPDATE` for MySQL, `INSERT … ON CONFLICT DO UPDATE` for PostgreSQL |
+
+---
+
+### 3. Cleans your data automatically before generating
 
 - Removes exact duplicate rows
 - Strips leading/trailing whitespace from all cells
@@ -38,21 +56,29 @@ This tool automates that intake workflow — the part that usually takes 20–30
 - Normalizes company/name columns — strips Inc., LLC, Ltd., Corp. suffixes and title-cases values
 - Collapses empty strings to NULL
 
-**3. Audits data quality** at a glance:
+---
+
+### 4. Audits data quality at a glance
 
 - Row count, column count, total null cells
 - Null % per column shown as a color-coded bar chart (blue → amber → red by severity)
 - Duplicate primary key detection
 - Foreign key candidate hints (columns named `_id`, `_key`, `_code`, `_ref`)
-- Mixed-type column detection → flags as `VARIANT`/`JSONB`
+- Mixed-type column detection → flags as `VARIANT` / `JSONB`
 
-**4. Exports deliverables** a BA or analyst would actually hand to a team:
+---
 
-- **Save .sql** — the `CREATE TABLE` statement, ready to execute
-- **Save Dict .csv** — lightweight data dictionary for any tool
-- **Save Dict .xlsx** — formatted Excel data dictionary with bold headers, color-coded null %, PK/FK highlights, and a Cleaning Log sheet
-- **Row Preview tab** — see the first 50 cleaned rows before committing to the schema
-- **Column Name Map tab** — before/after log of every column rename (`"Phone #"` → `phone_num`)
+### 5. Exports deliverables a BA or analyst would actually hand to a team
+
+| Export | Description |
+|---|---|
+| **Save .sql** | `CREATE TABLE` statement, ready to execute |
+| **Save DML .sql** | Full DML script — all 5 sections for the selected dialect |
+| **Save Staged CSV** | Cleaned dataset with DDL-aligned column headers, ready for bulk load |
+| **Save Dict .csv** | Lightweight data dictionary for any tool |
+| **Save Dict .xlsx** | Formatted Excel data dictionary with bold headers, color-coded null %, PK/FK highlights, and a Cleaning Log sheet |
+| **Row Preview tab** | First 50 cleaned rows before committing to the schema |
+| **Column Name Map tab** | Before/after log of every column rename (`"Phone #"` → `phone_num`) |
 
 ---
 
@@ -69,7 +95,7 @@ cd excel-to-ddl
 pip install -r requirements.txt
 
 # 3. Run
-python main.py
+python3 excel_ddl_automator.py
 ```
 
 ### Download a built release
@@ -87,10 +113,10 @@ Head to [Releases](https://github.com/aditcher/excel-to-ddl/releases) and grab:
    *(or hit **Load Demo Data** to try it instantly)*
 2. If the workbook has multiple sheets, pick one from the dropdown
 3. Set your **table name**, **SQL dialect**, and **nullability** preference
-4. Optionally check **Include sample INSERTs**
-5. Click **⚡ Generate DDL + Data Dictionary**
-6. Review the **DDL Output**, **Data Dictionary**, and **Column Name Map** tabs
-7. **Copy**, **Save .sql**, or **Save Dict .csv**
+4. Set your **DML row limit** (100 / 500 / 1,000 / All rows)
+5. Click **⚡ Generate DDL + DML**
+6. Review the **DDL Output**, **DML Output**, **Data Dictionary**, and **Column Name Map** tabs
+7. Use the toolbar to **Copy DDL**, **Copy DML**, **Save .sql**, **Save DML .sql**, **Save Staged CSV**, or **Save Dict .xlsx**
 
 ---
 
@@ -128,11 +154,11 @@ bash build_mac.sh
 # Output: dist/ExcelToDDL.app  +  dist/ExcelToDDL_mac.dmg
 ```
 
-### Windows EXE (via GitHub Actions)
+### Windows EXE / macOS DMG (via GitHub Actions)
 Push a version tag to trigger an automated build:
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v1.1.0
+git push origin v1.1.0
 ```
 GitHub Actions builds both the `.exe` and `.dmg` and attaches them to the release automatically.
 
@@ -142,7 +168,7 @@ GitHub Actions builds both the `.exe` and `.dmg` and attaches them to the releas
 
 ```
 excel-to-ddl/
-├── main.py                    # Application entry point + all logic
+├── excel_ddl_automator.py     # Application entry point + all logic
 ├── requirements.txt           # openpyxl only — no database drivers needed
 ├── build_mac.sh               # Local macOS PyInstaller build script
 ├── .github/
@@ -155,10 +181,32 @@ excel-to-ddl/
 
 ## Tech Stack
 
-- **Python 3.9+** — standard library (`tkinter`, `csv`, `re`, `datetime`)
-- **openpyxl** — Excel file reading (only non-stdlib dependency)
+- **Python 3.9+** — standard library (`tkinter`, `csv`, `re`, `datetime`, `threading`)
+- **openpyxl** — Excel file reading and formatted dictionary export (only non-stdlib dependency)
 - **PyInstaller** — packaging to native executables
 - **GitHub Actions** — cross-platform CI/CD release pipeline
+
+---
+
+## Changelog
+
+### v1.1.0
+- Added full DML generation engine (`build_dml()`) with 5 sections per dialect
+- New **DML Output** tab with syntax highlighting
+- Snowflake COPY INTO template with stage setup and load validation
+- Dialect-aware MERGE / UPSERT (standard MERGE, ON DUPLICATE KEY, ON CONFLICT)
+- UPDATE statement template with placeholder values
+- User-configurable DML row limit (100 / 500 / 1,000 / All rows)
+- New toolbar buttons: Copy DML, Save DML .sql, Save Staged CSV
+- `format_sql_value()` helper for correct NULL / numeric / string quoting
+
+### v1.0.0
+- Initial release: DDL generation across 5 dialects
+- Automated data cleaning engine
+- Data quality audit with null % bar chart
+- Formatted Excel data dictionary export
+- Row Preview and Column Name Map tabs
+- GitHub Actions CI/CD pipeline (Windows EXE + macOS DMG)
 
 ---
 
